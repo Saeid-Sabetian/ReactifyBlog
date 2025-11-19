@@ -15,8 +15,7 @@ namespace ReactifyBlog.Api.Extensions
 			app.UseSwaggerUI(options =>
 			{
 				options.SwaggerEndpoint("/swagger/v1/swagger.json", "ReactifyBlog API V1");
-				options.InjectJavascript("/swagger-custom/swagger-theme.js");
-				options.InjectStylesheet("/swagger-custom/swagger-theme.css");
+				options.InjectStylesheet("/swagger-ui/dark.css");
 			});
 			return app;
 		}
