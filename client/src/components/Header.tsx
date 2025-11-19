@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 const Header = () => {
   return (
     <>
@@ -58,7 +60,7 @@ const Header = () => {
               </ul>
 
               <form className="form-lg-inline my-2 my-md-0 ml-lg-4 text-center">
-                <a href="contact.html" className="btn btn-solid-border btn-round-full">Get a Quote</a>
+                <Link to="/auth" className="btn btn-solid-border btn-round-full">Login</Link>
               </form>
             </div>
           </div>
