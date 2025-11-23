@@ -10,17 +10,9 @@ namespace ReactifyBlog.Data.Data
         {
         }
 
-        public DbSet<RefreshToken> RefreshTokens { get; set; }
-
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
-
-            builder.Entity<ReactifyBlogUser>()
-                .HasMany(u => u.RefreshTokens)
-                .WithOne(rt => rt.User)
-                .HasForeignKey(rt => rt.UserId)
-                .IsRequired();
         }
     }
 }
