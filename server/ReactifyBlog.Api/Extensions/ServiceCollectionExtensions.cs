@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using ReactifyBlog.Business.Constants;
 using ReactifyBlog.Business.DTOs;
-using ReactifyBlog.Business.Services.Wrapper;
 using ReactifyBlog.Data.Data;
 using ReactifyBlog.Data.Models;
 
@@ -32,7 +31,6 @@ namespace ReactifyBlog.Api.Extensions
 					.AddEntityFrameworkStores<ReactifyBlogDbContext>()
 					.AddDefaultTokenProviders();
 
-			services.AddScoped<IIdentityService, IdentityService>();
 
 			return services;
 		}
@@ -74,27 +72,27 @@ namespace ReactifyBlog.Api.Extensions
 			{
 				options.InvalidModelStateResponseFactory = context =>
 							{
-						var errors = context.ModelState.Where(e => e.Value?.Errors.Any() == true)
-											.ToDictionary(
-													kvp => kvp.Key,
-													kvp => kvp.Value?.Errors.Select(e => e.ErrorMessage).ToArray() ?? Array.Empty<string>()
-											);
+								var errors = context.ModelState.Where(e => e.Value?.Errors.Any() == true)
+													.ToDictionary(
+															kvp => kvp.Key,
+															kvp => kvp.Value?.Errors.Select(e => e.ErrorMessage).ToArray() ?? Array.Empty<string>()
+													);
 
-						var errorInfo = new ErrorInfo
-						{
-							Code = "VALIDATION_FAILED",
-							Message = "One or more validation errors occurred.",
-							ValidationErrors = errors.ToDictionary(k => k.Key, v => v.Value)
-						};
+								var errorInfo = new ErrorInfo
+								{
+									Code = "VALIDATION_FAILED",
+									Message = "One or more validation errors occurred.",
+									ValidationErrors = errors.ToDictionary(k => k.Key, v => v.Value)
+								};
 
-						var appResponse = new AppResponse<object>
-						{
-							Data = null,
-							Error = errorInfo
-						};
+								var appResponse = new AppResponse<object>
+								{
+									Data = null,
+									Error = errorInfo
+								};
 
-						return new BadRequestObjectResult(appResponse);
-					};
+								return new BadRequestObjectResult(appResponse);
+							};
 			});
 
 			return services;
