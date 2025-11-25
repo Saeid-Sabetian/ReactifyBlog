@@ -7,6 +7,8 @@ builder.Services
 		.AddDatabase(builder.Configuration)
 		.AddApplicationCookie()
 		.AddSwagger()
+		.AddAutoMapper()
+		.AddApplicationServices()
 		.AddControllers();
 
 var app = builder.Build();

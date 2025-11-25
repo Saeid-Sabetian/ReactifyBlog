@@ -2,7 +2,7 @@ namespace ReactifyBlog.Business.DTOs.Auth;
 
 public class LoginRequest
 {
-	public string Emaill { get; set; }
-	public string Password { get; set; }
-	public string ConfirmPassword { get; set; }
+	public required string Email { get; set; }
+	public required string Password { get; set; }
+	public bool RememberMe { get; set; }
 }

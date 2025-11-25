@@ -8,6 +8,9 @@ using ReactifyBlog.Business.Constants;
 using ReactifyBlog.Business.DTOs;
 using ReactifyBlog.Data.Data;
 using ReactifyBlog.Data.Models;
+using ReactifyBlog.Business.MappingProfiles;
+using ReactifyBlog.Business.Contracts.Services;
+using ReactifyBlog.Business.Services;
 
 namespace ReactifyBlog.Api.Extensions
 {
@@ -18,7 +21,7 @@ namespace ReactifyBlog.Api.Extensions
 			services.AddDbContext<ReactifyBlogDbContext>(options =>
 					options.UseSqlServer(configuration.GetConnectionString(DatabaseConstants.DefaultConnectionStringName)));
 
-			services.AddIdentity<ReactifyBlogUser, ReactifyBlogRole>(options =>
+			services.AddIdentity<UserDBO, RoleDBO>(options =>
 			{
 				options.User.RequireUniqueEmail = true;
 				options.SignIn.RequireConfirmedEmail = false;
@@ -95,6 +98,19 @@ namespace ReactifyBlog.Api.Extensions
 							};
 			});
 
+			return services;
+		}
+
+		public static IServiceCollection AddAutoMapper(this IServiceCollection services)
+		{
+			services.AddAutoMapper(typeof(UserProfile).Assembly);
+			return services;
+		}
+
+		public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+		{
+			services.AddScoped<IIdentityService, IdentityService>();
+			services.AddScoped<IEmailService, EmailService>();
 			return services;
 		}
 	}
