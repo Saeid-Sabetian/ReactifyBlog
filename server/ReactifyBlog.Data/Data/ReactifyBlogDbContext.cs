@@ -12,6 +12,8 @@ namespace ReactifyBlog.Data.Data
         {
         }
 
+        public DbSet<RefreshTokenDBO> RefreshTokens { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);

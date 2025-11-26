@@ -1,16 +1,18 @@
-using FluentValidation;
+﻿using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using ReactifyBlog.Business.Constants;
+using ReactifyBlog.Business.Contracts.Services;
 using ReactifyBlog.Business.DTOs;
+using ReactifyBlog.Business.Filters;
+using ReactifyBlog.Business.MappingProfiles;
+using ReactifyBlog.Business.Services;
+using ReactifyBlog.Business.Validators.Auth;
 using ReactifyBlog.Data.Data;
 using ReactifyBlog.Data.Models;
-using ReactifyBlog.Business.MappingProfiles;
-using ReactifyBlog.Business.Contracts.Services;
-using ReactifyBlog.Business.Services;
 
 namespace ReactifyBlog.Api.Extensions
 {
@@ -68,34 +70,11 @@ namespace ReactifyBlog.Api.Extensions
 
 		public static IServiceCollection AddFluentValidation(this IServiceCollection services)
 		{
-			services.AddFluentValidationAutoValidation().AddFluentValidationClientsideAdapters();
-			services.AddValidatorsFromAssemblyContaining<ReactifyBlog.Business.Validators.Auth.RegisterRequestValidator>();
+			services.AddValidatorsFromAssembly(typeof(RegisterRequestValidator).Assembly);
 
 			services.Configure<ApiBehaviorOptions>(options =>
 			{
-				options.InvalidModelStateResponseFactory = context =>
-							{
-								var errors = context.ModelState.Where(e => e.Value?.Errors.Any() == true)
-													.ToDictionary(
-															kvp => kvp.Key,
-															kvp => kvp.Value?.Errors.Select(e => e.ErrorMessage).ToArray() ?? Array.Empty<string>()
-													);
-
-								var errorInfo = new ErrorInfo
-								{
-									Code = "VALIDATION_FAILED",
-									Message = "One or more validation errors occurred.",
-									ValidationErrors = errors.ToDictionary(k => k.Key, v => v.Value)
-								};
-
-								var appResponse = new AppResponse<object>
-								{
-									Data = null,
-									Error = errorInfo
-								};
-
-								return new BadRequestObjectResult(appResponse);
-							};
+				options.SuppressModelStateInvalidFilter = true;
 			});
 
 			return services;
@@ -111,6 +90,9 @@ namespace ReactifyBlog.Api.Extensions
 		{
 			services.AddScoped<IIdentityService, IdentityService>();
 			services.AddScoped<IEmailService, EmailService>();
+
+			services.AddScoped<ValidationFilter>();
+
 			return services;
 		}
 	}

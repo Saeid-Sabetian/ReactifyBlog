@@ -9,6 +9,7 @@ builder.Services
 		.AddSwagger()
 		.AddAutoMapper()
 		.AddApplicationServices()
+		.AddFluentValidation()
 		.AddControllers();
 
 var app = builder.Build();
@@ -20,7 +21,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles()
-	 .UseCustomExceptionHandling()
+	 .UseResponseExceptionHandling()
 	 .UseHttpsRedirection()
 	 .UseRouting()
 	 .UseAuthentication()

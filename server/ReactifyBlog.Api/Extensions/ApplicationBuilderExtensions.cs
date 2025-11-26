@@ -4,9 +4,9 @@ namespace ReactifyBlog.Api.Extensions
 {
 	public static class ApplicationBuilderExtensions
 	{
-		public static IApplicationBuilder UseCustomExceptionHandling(this IApplicationBuilder app)
+		public static IApplicationBuilder UseResponseExceptionHandling(this IApplicationBuilder app)
 		{
-			return app.UseMiddleware<ExceptionHandlingMiddleware>();
+			return app.UseMiddleware<ResponseHandlingMiddleware>();
 		}
 
 		public static IApplicationBuilder UseSwaggerDocumentation(this IApplicationBuilder app)

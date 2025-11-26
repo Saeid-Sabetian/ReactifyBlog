@@ -3,9 +3,9 @@ using FluentValidation;
 
 namespace ReactifyBlog.Business.Validators.Auth
 {
-	public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
+	public class LoginRequestValidator : AbstractValidator<LoginRequest>
 	{
-		public RegisterRequestValidator()
+		public LoginRequestValidator()
 		{
 			RuleFor(x => x.Email)
 					.NotEmpty().WithMessage("Email is required.")
@@ -14,9 +14,6 @@ namespace ReactifyBlog.Business.Validators.Auth
 			RuleFor(x => x.Password)
 					.NotEmpty().WithMessage("Password is required.")
 					.MinimumLength(6).WithMessage("Password must be at least 6 characters long.").WithState(_ => 403);
-
-			RuleFor(x => x.ConfirmPassword)
-					.Equal(x => x.Password).WithMessage("Passwords do not match.").WithState(_ => 403);
 		}
 	}
 }
