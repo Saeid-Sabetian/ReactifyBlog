@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 
 namespace ReactifyBlog.Data.Models
 {
-    public class RoleDBO : IdentityRole<Guid>
+    public class RoleDBO : IdentityRole<long>
     {
     }
 }

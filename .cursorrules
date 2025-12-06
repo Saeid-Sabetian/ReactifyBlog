@@ -1,0 +1,380 @@
+# ================================
+# Project Structure Rules
+# ================================
+- Root contains exactly two folders:
+  - /server → ASP.NET Core API (.NET 10), multi-project backend solution.
+    - ASP.NET Core API should use Contoller
+  - /client → React 18+ with TypeScript & TSX (Vite or Create React App).
+- Never place code outside these folders.
+- /server must contain a solution (ReactifyBlog.sln) with three projects:
+  - ReactifyBlog.Api → ASP.NET Core minimal API (presentation layer).
+  - ReactifyBlog.Business → Class library (business logic, services, DTOs, validations).
+  - ReactifyBlog.Data → Class library (EF Core, repositories, entities, migrations).
+- /server/Tests must contain test projects:
+  - ReactifyBlog.Api.Tests
+  - ReactifyBlog.Business.Tests
+  - ReactifyBlog.Data.Tests
+  - All tests use xUnit + Moq + FluentAssertions.
+
+# ================================
+# Backend Layering & Architecture Rules
+# ================================
+- Strict 3-layer separation:
+  - ReactifyBlog.Api: Only HTTP concerns (controllers, middleware, DI setup).
+  - ReactifyBlog.Business: Pure logic — services, validators, custom exceptions, constants.
+  - ReactifyBlog.Data: Only data access — DbContext, repositories, EF configs.
+- No cross-layer dependencies except downward:
+  - Api → Business → Data
+  - Business must never reference Api.
+  - Data must never reference Business or Api.
+- All projects use explicit namespace matching folder structure.
+- All **EF Core entity models** (inside `/server/ReactifyBlog.Data/Models/`) **must end with `DBO` suffix** (e.g., `UserDBO`, `PostDBO`, `RefreshTokenDBO`).  
+  → This enforces clear domain-boundary: Data layer owns raw entities; Business layer owns DTOs/Models.
+- ✅ NO hard-coded strings anywhere in backend — all literals moved to constant classes in `ReactifyBlog.Business/Constants/`:
+  • `DatabaseConstants.cs`:
+      public static class DatabaseConstants
+      {
+          public const string DefaultConnectionStringName = "DefaultConnection";
+      }
+  • `CookieConstants.cs`:
+      public static class CookieConstants
+      {
+          public const string IdentityCookieName = ".AspNetCore.Identity.ReactifyBlog";
+          public const string RefreshTokenCookieName = "refresh_token";
+      }
+  • `SwaggerConstants.cs`:
+      public static class SwaggerConstants
+      {
+          public const string ApiTitle = "ReactifyBlog API";
+          public const string ApiVersion = "v1";
+          public const string ApiDocName = "v1";
+      }
+  • `RouteConstants.cs` (optional but recommended):
+      public static class RouteConstants
+      {
+          public const string ApiPrefix = "api";
+          public static class Auth { public const string Base = "auth"; }
+      }
+-✅ All configuration in `Program.cs` must be extracted into extension methods:
+  • Create folder: `/server/ReactifyBlog.Api/Extensions/`
+  • File: `ServiceCollectionExtensions.cs`
+      public static class ServiceCollectionExtensions
+      {
+          public static IServiceCollection AddDatabase(this IServiceCollection services, IConfiguration configuration)
+          {
+              services.AddDbContext<ReactifyBlogDbContext>(options =>
+                  options.UseSqlServer(configuration.GetConnectionString(DatabaseConstants.DefaultConnectionStringName)));
+              return services;
+          }
+          public static IServiceCollection AddApplicationCookie(this IServiceCollection services)
+          {
+              services.ConfigureApplicationCookie(options =>
+              {
+                  options.Cookie.Name = CookieConstants.IdentityCookieName;
+                  options.Cookie.HttpOnly = true;
+                  options.Cookie.SameSite = SameSiteMode.Strict;
+                  options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                  options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
+                  options.SlidingExpiration = true;
+              });
+              return services;
+          }
+          public static IServiceCollection AddSwagger(this IServiceCollection services)
+          {
+              services.AddSwaggerGen(options =>
+              {
+                  options.SwaggerDoc(SwaggerConstants.ApiDocName, new OpenApiInfo
+                  {
+                      Title = SwaggerConstants.ApiTitle,
+                      Version = SwaggerConstants.ApiVersion
+                  });
+              });
+              return services;  
+          }
+      }
+  • File: `ApplicationBuilderExtensions.cs`
+      public static class ApplicationBuilderExtensions
+      {
+          public static IApplicationBuilder UseCustomExceptionHandling(this IApplicationBuilder app)
+          {
+              return app.UseMiddleware<ResponseHandlingMiddleware>();
+          }
+      }
+  • Then `Program.cs` becomes minimal:
+      var builder = WebApplication.CreateBuilder(args);
+      builder.Services
+          .AddDatabase(builder.Configuration)
+          .AddApplicationCookie()
+          .AddSwagger()
+          .AddControllers(); // or AddEndpoints, etc.
+      var app = builder.Build();
+      if (app.Environment.IsDevelopment()) app.UseSwagger();
+      app.UseCustomExceptionHandling().UseHttpsRedirection().UseRouting().UseAuthentication().UseAuthorization().MapControllers();
+      app.Run();
+
+- ✅ This applies to ALL string literals — connection strings, cookie names, route templates, claim types, error messages in exceptions (use constants + interpolation), etc.
+
+# ================================
+# Custom Exception Handling Rules
+# ================================
+- Define base exception:  
+  ReactifyBlog.Business/Exceptions/ReactifyBlogException.cs  
+  → Properties: ErrorCode (string), ServiceName (string), StatusCode (int), Details (optional dict).
+- For each service (e.g., RegisterService):
+  - Create matching error constants class:  
+    ReactifyBlog.Business/Constants/ErrorConstants/Exceptions/RegisterServiceErrorConstants.cs  
+    → public const readonly fields like:  
+    public const string UserExistsErrorCode = "REG_001";
+    public const string UserExistsErrorMessage = "User exists.";  
+    public const string InvalidEmailErrorCode = "REG_002";
+    public const string InvalidEmailErrorMessage = "Entered email exists in database.";
+
+  - When throwing:  
+    throw new ReactifyBlogException(RegisterServiceErrorConstants.UserExistsErrorCode, nameof(RegisterService), 400);
+- Centralized exception middleware in Api/Middleware/ResponseHandlingMiddleware.cs:
+  - Catches ReactifyBlogException → returns AppResponse with Error set + proper status code.
+  - Catches unexpected exceptions → logs + returns 500 with generic safe message.
+
+# ================================
+# API Response & DTO Rules
+# ================================
+- Define generic response wrapper:  
+  ReactifyBlog.Business/DTOs/AppResponse.cs<T> →  
+  public class AppResponse<T>
+  {
+      public T? Data { get; set; }
+      public ErrorInfo? Error { get; set; }
+  }
+  Where ErrorInfo has: Code, Message, Service, ValidationErrors (for FluentValidation).
+- All endpoints return AppResponse<T> (never raw data or exceptions).
+- If HTTP status is 2xx → Data is filled, Error = null.
+- If HTTP status is 4xx/5xx → Error is filled (with code/message/service), Data = null.
+- FluentValidation:
+  - Validators live in Business/Validators/.
+  - On validation failure → middleware converts ValidationException to AppResponse with:  
+    { "Error": { "Code": "VALIDATION_FAILED", "ValidationErrors": { "Email": ["Invalid format"] } } }
+
+# ================================
+# Identity & Authentication Rules
+# ================================
+- Use **ASP.NET Core Identity** (Microsoft.AspNetCore.Identity.EntityFrameworkCore) as the single source of truth for auth.
+- ReactifyBlogDbContext must inherit from IdentityDbContext<ReactifyBlogUser, ReactifyBlogRole, Guid>.
+- Default Identity cookie (named ".AspNetCore.Identity.ReactifyBlog") is used for authentication — HttpOnly, SameSite=Strict, Secure.
+- Custom refresh token support:
+  - On successful login, generate a cryptographically random refresh token (128-bit).
+  - Store it (hashed + salted) in a new table: RefreshTokens (UserId, TokenHash, ExpiresAt, RevokedAt).
+  - Send raw refresh token ONLY via secure, HttpOnly cookie named "refresh_token".
+  - /auth/refresh endpoint validates refresh_token cookie → issues new Identity session (via SignInManager.SignInAsync).
+- All auth logic wrapped in services (e.g., AuthService) — never expose SignInManager/UserManager to controllers.
+- Claims & roles managed via Identity — [Authorize] and policies used for endpoint protection.
+- Password policies, lockout, email confirmation → configured via IdentityOptions.
+- Migrations must include Identity + RefreshTokens tables.
+
+# ================================
+# Data Layer (EF Core) Rules
+# ================================
+- Use **EF Core 9** (latest stable for .NET 10).
+- DbContext lives in ReactifyBlog.Data/Data/ReactifyBlogDbContext.cs.
+- All queries must be async (ToListAsync, FirstOrDefaultAsync, etc.).
+- Use DbSet<TEntity> only in repositories — never in services or controllers.
+- Repositories implement interfaces (e.g., IUserRepository) defined in ReactifyBlog.Business.
+- Configurations (OnModelCreating) must be split into IEntityTypeConfiguration<TEntity> classes in ReactifyBlog.Data/Configurations/.
+- Migrations generated only via Package Manager Console:  
+  Add-Migration <Name> -Project ReactifyBlog.Data -StartupProject ReactifyBlog.Api
+- Never expose EF entities outside ReactifyBlog.Data; mapping to DTOs happens in ReactifyBlog.Business/Mappings/ (AutoMapper or manual).
+
+# ================================
+# Code Quality & Style Rules (Backend)
+# ================================
+- No hard-coded strings: all keys, messages, routes, claim names → ReactifyBlog.Business/Constants.
+- Braces always on new line, even for 1-liners:
+  if (x == 1)
+  {
+      return;
+  }
+- One blank line between all members (fields, props, methods) — improves readability.
+- Async all the way: no .Result or .Wait().
+- DI-friendly design: all dependencies injected via constructor; no new Service() in logic.
+- Unit-testable:
+  - Services depend on interfaces (IUserRepository, not UserRepository).
+  - No static/logic in controllers.
+  - Test projects mirror structure.
+
+# ================================
+# React Frontend (TSX) Rules
+# ================================
+- /client uses Vite + React 18 + TypeScript + TSX.
+- Folder structure:
+  - /src
+    - /components → reusable (dumb) components (PascalCase.tsx).
+    - /pages → route-level pages (e.g., BlogPage.tsx).
+    - /services → API clients (authService.ts, blogService.ts).
+    - /hooks → custom hooks (useAuth.ts, useApi.ts).
+    - /types → shared TS interfaces (mirroring backend DTOs).
+    - /utils → helpers (no business logic).
+    - /assets, /styles
+- Strict TypeScript:
+  - noImplicitAny, strict: true.
+  - All props typed; no any.
+- API layer:
+  - All calls go through apiClient.ts (Fetch wrapper).
+  - Automatically handles cookies (credentials: 'include').
+  - Never throws — always returns AppResponse<T> (even on network/API errors).
+
+- Base API Response Handling (MUST mirror backend AppResponse<T> exactly):
+  - Define shared response types in /src/types/api.ts:
+    export interface ErrorInfo {
+      Code: string;
+      Message: string;
+      Service?: string;
+      ValidationErrors?: Record<string, string[]>;
+    }
+
+    export interface AppResponse<T = undefined> {
+      Data?: T | null;
+      Error?: ErrorInfo | null;
+    }
+
+  - Every API service method MUST return Promise<AppResponse<T>> — never raw T or throw.
+  - apiClient.ts behavior:
+    • On 2xx–3xx: parse JSON → { Data: T, Error: null } → return as-is.
+    • On 4xx/5xx: parse → { Error: { Code, Message, Service, ValidationErrors? }, Data: null }.
+      → ValidationErrors from FluentValidation are preserved as-is for form binding.
+    • On network failure: return synthetic AppResponse with Code: "NETWORK_ERROR", etc.
+  - Usage in components/services:
+    const res = await authService.login(credentials);
+    if (res.Error) {
+      if (res.Error.ValidationErrors) {
+        // Handle field-level errors (e.g., React Hook Form setError)
+      } else {
+        // Show generic error (e.g., toast)
+      }
+    } else {
+      // res.Data is safe to use
+    }
+
+- State management: React Context + useReducer for auth; no Redux unless scale demands.
+- No inline styles — CSS Modules or Tailwind (configurable).
+- Error boundaries for pages.
+
+# ================================
+# Generic API Service Specification (Mandatory)
+# ================================
+- MUST implement a generic HTTP service in /src/services/apiClient.ts:
+  - Name: `httpClient`
+  - Purpose: Unified, type-safe, cookie-aware HTTP client for all backend calls.
+  - All domain services (authService, blogService, etc.) MUST use this — no direct fetch/axios.
+
+- HTTP Methods constants (define in /src/constants/httpMethods.ts):
+  export const HTTP_METHODS = {
+    GET: 'GET',
+    POST: 'POST',
+    PUT: 'PUT',
+    PATCH: 'PATCH',
+    DELETE: 'DELETE'
+  } as const;
+  export type HttpMethod = typeof HTTP_METHODS[keyof typeof HTTP_METHODS];
+
+- `httpClient` implementation (in /src/services/apiClient.ts):
+  interface HttpClientOptions<TRequest = undefined> {
+    url: string;
+    method: HttpMethod;
+    body?: TRequest;
+    signal?: AbortSignal;
+  }
+
+  export const httpClient = {
+    request: async <TResponse, TRequest = undefined>(
+      options: HttpClientOptions<TRequest>
+    ): Promise<AppResponse<TResponse>> => {
+      const { url, method, body, signal } = options;
+
+      const config: RequestInit = {
+        method,
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal,
+      };
+
+      if (body !== undefined && method !== HTTP_METHODS.GET && method !== HTTP_METHODS.DELETE) {
+        config.body = JSON.stringify(body);
+      }
+
+      try {
+        const res = await fetch(url, config);
+        let data: AppResponse<TResponse>;
+        try {
+          data = await res.json();
+        } catch {
+          // Fallback on invalid JSON (e.g., 502, HTML error page)
+          data = {
+            Data: null,
+            Error: {
+              Code: 'PARSE_ERROR',
+              Message: 'Invalid server response.',
+              Service: 'HttpClient'
+            }
+          };
+        }
+        // Ensure shape — defensive programming
+        if (data.Data === undefined) data.Data = null;
+        if (data.Error === undefined) data.Error = null;
+        // NOTE: ValidationErrors from backend are preserved here (e.g., { "Email": [...] })
+        return data;
+      } catch (err) {
+        // Network-level failure (offline, DNS, timeout, CORS)
+        return {
+          Data: null,
+          Error: {
+            Code: 'NETWORK_ERROR',
+            Message: 'Unable to reach server. Please check your connection.',
+            Service: 'HttpClient'
+          }
+        };
+      }
+    },
+
+    get: <T>(url: string, signal?: AbortSignal) => 
+      httpClient.request<T, undefined>({ url, method: HTTP_METHODS.GET, signal }),
+
+    post: <T, R = undefined>(url: string, body?: R, signal?: AbortSignal) => 
+      httpClient.request<T, R>({ url, method: HTTP_METHODS.POST, body, signal }),
+
+    put: <T, R = undefined>(url: string, body?: R, signal?: AbortSignal) => 
+      httpClient.request<T, R>({ url, method: HTTP_METHODS.PUT, body, signal }),
+
+    patch: <T, R = undefined>(url: string, body?: R, signal?: AbortSignal) => 
+      httpClient.request<T, R>({ url, method: HTTP_METHODS.PATCH, body, signal }),
+
+    delete: <T>(url: string, signal?: AbortSignal) => 
+      httpClient.request<T, undefined>({ url, method: HTTP_METHODS.DELETE, signal })
+  };
+
+- Domain services MUST use it like:
+  import { LoginRequest, LoginResponse } from '@/types/auth';
+  export const login = (req: LoginRequest) => 
+    httpClient.post<LoginResponse, LoginRequest>('/api/auth/login', req);
+  
+  export const logout = () => 
+    httpClient.post<void>('/api/auth/logout');
+  
+  export const refreshSession = () => 
+    httpClient.post<void>('/api/auth/refresh');
+
+- Critical requirements:
+  • `credentials: 'include'` is non-negotiable — enables automatic cookie transmission (auth + refresh_token).
+  • No manual header/token injection — Identity cookie + refresh_token cookie handle auth fully.
+  • All domain services are thin wrappers over `httpClient.{method}`.
+  • Never use raw `fetch()` or `axios()` elsewhere.
+
+# ================================
+# Build & Validation Enforcement (MANDATORY FOR CURSOR)
+# ================================
+After every change:
+1. Run: dotnet build /server/ReactifyBlog.sln --configuration Release
+2. Run: cd /client && npm run build
+3. If any error → fix immediately and retry.
+4. Proceed only when both builds succeed with 0 errors.
+Goal: Project must always be in buildable, error-free state.

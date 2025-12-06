@@ -5,118 +5,118 @@ using ReactifyBlog.Business.Exceptions;
 
 namespace ReactifyBlog.Api.Middleware
 {
-	public class ResponseHandlingMiddleware
-	{
-		private readonly RequestDelegate _next;
+  public class ResponseHandlingMiddleware
+  {
+    private readonly RequestDelegate _next;
 
-		public ResponseHandlingMiddleware(RequestDelegate next)
-		{
-			_next = next;
-		}
+    private JsonSerializerOptions options = new JsonSerializerOptions
+    {
+      PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+      DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    };
 
-		public async Task InvokeAsync(HttpContext httpContext)
-		{
-			var originalBodyStream = httpContext.Response.Body;
-			var responseBody = new MemoryStream();
-			httpContext.Response.Body = responseBody;
+    public ResponseHandlingMiddleware(RequestDelegate next)
+    {
+      _next = next;
+    }
 
-			try
-			{
-				await _next(httpContext);
+    public async Task InvokeAsync(HttpContext httpContext)
+    {
+      var originalBodyStream = httpContext.Response.Body;
+      var responseBody = new MemoryStream();
+      httpContext.Response.Body = responseBody;
 
-				httpContext.Response.Body = originalBodyStream;
+      try
+      {
+        await _next(httpContext);
 
-				if (httpContext.Response.StatusCode >= 200 && httpContext.Response.StatusCode <= 300)
-				{
-					responseBody.Seek(0, SeekOrigin.Begin);
-					var responseText = await new StreamReader(responseBody).ReadToEndAsync();
+        httpContext.Response.Body = originalBodyStream;
 
-					object? data = null;
-					if (!string.IsNullOrWhiteSpace(responseText))
-					{
-						try
-						{
-							data = JsonSerializer.Deserialize<dynamic>(responseText,
-									new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-						}
-						catch (JsonException)
-						{
-							data = responseText;
-						}
-					}
+        if (httpContext.Response.StatusCode >= 200 && httpContext.Response.StatusCode <= 300)
+        {
+          responseBody.Seek(0, SeekOrigin.Begin);
+          var responseText = await new StreamReader(responseBody).ReadToEndAsync();
 
-					var appResponse = new AppResponse<object> { Data = data };
+          object? data = null;
+          if (!string.IsNullOrWhiteSpace(responseText))
+          {
+            try
+            {
+              data = JsonSerializer.Deserialize<dynamic>(responseText,
+                  new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            catch (JsonException)
+            {
+              data = responseText;
+            }
+          }
 
-					httpContext.Response.ContentType = "application/json";
-					await httpContext.Response.WriteAsync(
-							JsonSerializer.Serialize(appResponse,
-									new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
-				}
-			}
-			catch (ReactifyBlogException ex)
-			{
-				httpContext.Response.Body = originalBodyStream;
-				httpContext.Response.ContentType = "application/json";
-				httpContext.Response.StatusCode = ex.StatusCode;
+          var appResponse = new AppResponse<object> { Data = data };
 
-				var errorResponse = new AppResponse<object>
-				{
-					Error = new ErrorInfo
-					{
-						Code = ex.ErrorCode,
-						Message = ex.Message,
-						Service = ex.ServiceName
-					}
-				};
+          httpContext.Response.ContentType = "application/json";
+          await httpContext.Response.WriteAsync(JsonSerializer.Serialize(appResponse, options));
+        }
+      }
+      catch (ReactifyBlogException ex)
+      {
+        httpContext.Response.Body = originalBodyStream;
+        httpContext.Response.ContentType = "application/json";
+        httpContext.Response.StatusCode = ex.StatusCode;
 
-				await httpContext.Response.WriteAsync(
-						JsonSerializer.Serialize(errorResponse,
-								new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
-			}
-			catch (ValidationException ex)
-			{
-				httpContext.Response.Body = originalBodyStream;
+        var errorResponse = new AppResponse<object>
+        {
+          Error = new ErrorInfo
+          {
+            Code = ex.ErrorCode,
+            Message = ex.Message,
+            Service = ex.ServiceName
+          }
+        };
 
-				var statusCode = ex.Errors
-						.Select(e => e.CustomState)
-						.OfType<int>()
-						.FirstOrDefault();
+        await httpContext.Response.WriteAsync(JsonSerializer.Serialize(errorResponse, options));
+      }
+      catch (ValidationException ex)
+      {
+        httpContext.Response.Body = originalBodyStream;
 
-				httpContext.Response.StatusCode = statusCode == 0 ? 400 : statusCode;
+        var statusCode = ex.Errors
+            .Select(e => e.CustomState)
+            .OfType<int>()
+            .FirstOrDefault();
 
-				await httpContext.Response.WriteAsJsonAsync(new
-				{
-					errors = ex.Errors.Select(e => new
-					{
-						e.PropertyName,
-						e.ErrorMessage
-					})
-				});
-			}
-			catch (Exception)
-			{
-				httpContext.Response.Body = originalBodyStream;
-				httpContext.Response.ContentType = "application/json";
-				httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        httpContext.Response.StatusCode = statusCode == 0 ? 400 : statusCode;
 
-				var errorResponse = new AppResponse<object>
-				{
-					Error = new ErrorInfo
-					{
-						Code = "UNEXPECTED_ERROR",
-						Message = "An unexpected internal server error occurred.",
-						Service = "Global"
-					}
-				};
+        await httpContext.Response.WriteAsJsonAsync(new
+        {
+          errors = ex.Errors.Select(e => new
+          {
+            e.PropertyName,
+            e.ErrorMessage
+          })
+        });
+      }
+      catch (Exception)
+      {
+        httpContext.Response.Body = originalBodyStream;
+        httpContext.Response.ContentType = "application/json";
+        httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
 
-				await httpContext.Response.WriteAsync(
-						JsonSerializer.Serialize(errorResponse,
-								new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
-			}
-			finally
-			{
-				responseBody.Dispose();
-			}
-		}
-	}
+        var errorResponse = new AppResponse<object>
+        {
+          Error = new ErrorInfo
+          {
+            Code = "UNEXPECTED_ERROR",
+            Message = "An unexpected internal server error occurred.",
+            Service = "Global"
+          }
+        };
+
+        await httpContext.Response.WriteAsync(JsonSerializer.Serialize(errorResponse, options));
+      }
+      finally
+      {
+        responseBody.Dispose();
+      }
+    }
+  }
 }

@@ -23,22 +23,26 @@ namespace ReactifyBlog.Api.Controllers
 		public async Task<ActionResult<AppResponse<bool>>> Register([FromBody] RegisterRequest request)
 		{
 			var result = await _identityService.RegisterUserAsync(request);
+
 			if (result)
 			{
-				return Ok(new AppResponse<bool> { Data = true });
+				return Ok();
 			}
-			return BadRequest(new AppResponse<bool> { Error = new ErrorInfo { Code = "REG_FAILED", Message = "Registration failed" } });
+
+			return BadRequest();
 		}
 
 		[HttpPost(EndpointRouteConstants.AuthLogin)]
-		public async Task<ActionResult<AppResponse<bool>>> Login([FromBody] LoginRequest request)
+		public async Task<ActionResult<AppResponse<bool>>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
 		{
-			var result = await _identityService.LoginUserAsync(request);
+			var result = await _identityService.LoginUserAsync(request, cancellationToken);
+
 			if (result)
 			{
-				return Ok(new AppResponse<bool> { Data = true });
+				return Ok();
 			}
-			return Unauthorized(new AppResponse<bool> { Error = new ErrorInfo { Code = "LOGIN_FAILED", Message = "Invalid credentials" } });
+
+			return Unauthorized();
 		}
 	}
 }
