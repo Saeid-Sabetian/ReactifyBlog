@@ -20,7 +20,7 @@ namespace ReactifyBlog.Api.Controllers
 		}
 
 		[HttpPost(EndpointRouteConstants.AuthRegister)]
-		public async Task<ActionResult<AppResponse<bool>>> Register([FromBody] RegisterRequest request)
+		public async Task<IActionResult> Register([FromBody] RegisterRequest request)
 		{
 			var result = await _identityService.RegisterUserAsync(request);
 
@@ -33,7 +33,7 @@ namespace ReactifyBlog.Api.Controllers
 		}
 
 		[HttpPost(EndpointRouteConstants.AuthLogin)]
-		public async Task<ActionResult<AppResponse<bool>>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
+		public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
 		{
 			var result = await _identityService.LoginUserAsync(request, cancellationToken);
 
@@ -44,5 +44,18 @@ namespace ReactifyBlog.Api.Controllers
 
 			return Unauthorized();
 		}
-	}
+
+    [HttpPost(EndpointRouteConstants.AuthConfirmAccount)]
+    public async Task<IActionResult> ConfirmAccount([FromBody] ConfirmEmailRequest request, CancellationToken cancellationToken)
+    {
+      var result = await _identityService.ConfirmEmailAsync(request, cancellationToken);
+
+      if (result)
+      {
+        return Ok();
+      }
+
+      return Unauthorized();
+    }
+  }
 }

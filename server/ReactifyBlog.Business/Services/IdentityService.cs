@@ -1,11 +1,13 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using ReactifyBlog.Business.Common;
 using ReactifyBlog.Business.Constants;
 using ReactifyBlog.Business.Constants.ErrorConstants.Exceptions;
 using ReactifyBlog.Business.Contracts.Services;
 using ReactifyBlog.Business.DTOs.Auth;
 using ReactifyBlog.Business.Exceptions;
+using ReactifyBlog.Business.Extentions;
 using ReactifyBlog.Data.Data;
 using ReactifyBlog.Data.Models;
 using System.Diagnostics.CodeAnalysis;
@@ -47,15 +49,15 @@ namespace ReactifyBlog.Business.Services
 
       if (result.Succeeded)
       {
-        string sevenDigitCodeToVerifyEmail = GenerateSecureSevenDigitCodeToVerifyEmail();
+        string sixDigitCodeToVerifyEmail = NumericHelper.GenerateRandomInt(NumericConstants.OneHundredThousand, NumericConstants.OneMillion).ToString();
 
-        user.ConfirmEmailCode = sevenDigitCodeToVerifyEmail;
+        user.ConfirmEmailCode = sixDigitCodeToVerifyEmail;
 
-        user.ConfirmEmailExpiration = DateTimeOffset.UtcNow.AddMinutes(15);
+        user.ConfirmEmailExpiration = DateTimeOffset.UtcNow.AddMinutes(NumericConstants.Fifteen);
 
         await _userManager.UpdateAsync(user);
 
-        await _emailService.SendEmailAsync(user.Email, EmailConstants.ConfirmEmailSubject, string.Format(EmailConstants.ConfirmEmailMessage, sevenDigitCodeToVerifyEmail));
+        await _emailService.SendEmailAsync(user.Email, EmailConstants.ConfirmEmailSubject, string.Format(EmailConstants.ConfirmEmailMessage, sixDigitCodeToVerifyEmail));
 
         await _userManager.AddToRoleAsync(user, Data.Constants.RoleConstants.UserRole);
 
@@ -170,10 +172,34 @@ namespace ReactifyBlog.Business.Services
 
     public async Task<bool> ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken cancellationToken)
     {
-      var user = await _userManager.FindByIdAsync(request.UserId.ToString());
-      if (user == null || user.ConfirmEmailCode == null || user.ConfirmEmailExpiration == null || user.ConfirmEmailExpiration < DateTimeOffset.UtcNow || user.ConfirmEmailCode != request.Token)
+      var user = await _userManager.FindByEmailAsync(request.Email.Trim());
+
+      if (user is null)
       {
-        return false;
+        throw new ReactifyBlogException(
+                  AuthServiceErrorConstants.ConfirmEmailUserDoesNotExistErrorCode,
+                  nameof(IdentityService),
+                  (int)System.Net.HttpStatusCode.NotFound,
+                  AuthServiceErrorConstants.ConfirmEmailUserDoesNotExistErrorMessage);
+      }
+
+      if (user.EmailConfirmed)
+      {
+        throw new ReactifyBlogException(
+              AuthServiceErrorConstants.ConfirmEmailAlreadyConfirmedErrorCode,
+              nameof(IdentityService),
+              (int)System.Net.HttpStatusCode.NotAcceptable,
+              AuthServiceErrorConstants.ConfirmEmailAlreadyConfirmedErrorMessage);
+      }
+
+      var utcNow = DateTime.UtcNow;
+      if (utcNow > user.ConfirmEmailExpiration)
+      {
+        throw new ReactifyBlogException(
+              AuthServiceErrorConstants.ConfirmEmailExpiredErrorCode,
+              nameof(IdentityService),
+              (int)System.Net.HttpStatusCode.BadRequest,
+              AuthServiceErrorConstants.ConfirmEmailExpiredErrorMessage);
       }
 
       user.EmailConfirmed = true;

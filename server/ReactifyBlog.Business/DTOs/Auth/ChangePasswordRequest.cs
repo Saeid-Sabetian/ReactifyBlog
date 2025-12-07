@@ -12,6 +12,6 @@ public class ChangePasswordRequest
 
 public class ConfirmEmailRequest
 {
-	public required Guid UserId { get; set; }
-	public required string Token { get; set; }
+	public string Email { get; set; }
+	public string ConfirmationCode { get; set; }
 }
