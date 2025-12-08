@@ -7,7 +7,6 @@ using ReactifyBlog.Business.Constants.ErrorConstants.Exceptions;
 using ReactifyBlog.Business.Contracts.Services;
 using ReactifyBlog.Business.DTOs.Auth;
 using ReactifyBlog.Business.Exceptions;
-using ReactifyBlog.Business.Extentions;
 using ReactifyBlog.Data.Data;
 using ReactifyBlog.Data.Models;
 using System.Diagnostics.CodeAnalysis;
@@ -53,7 +52,7 @@ namespace ReactifyBlog.Business.Services
 
         user.ConfirmEmailCode = sixDigitCodeToVerifyEmail;
 
-        user.ConfirmEmailExpiration = DateTimeOffset.UtcNow.AddMinutes(NumericConstants.Fifteen);
+        user.ConfirmEmailExpiration = DateTime.UtcNow.AddMinutes(NumericConstants.Fifteen);
 
         await _userManager.UpdateAsync(user);
 
@@ -67,8 +66,10 @@ namespace ReactifyBlog.Business.Services
       return false;
     }
 
-    public async Task<bool> LoginUserAsync(LoginRequest request, CancellationToken cancellationToken)
+    public async Task LoginUserAsync(LoginRequest request, CancellationToken cancellationToken)
     {
+      var isLoginSuccessful = false;
+
       var user = await _userManager.FindByEmailAsync(request.Email);
 
       if (user is null)
@@ -115,14 +116,17 @@ namespace ReactifyBlog.Business.Services
           await GenerateAndStoreRefreshTokenAsync(user, cancellationToken);
         }
 
-        return true;
+        isLoginSuccessful = true;
       }
 
-      throw new ReactifyBlogException(
-         AuthServiceErrorConstants.LoginFailedErrorCode,
-         nameof(IdentityService),
-         (int)System.Net.HttpStatusCode.BadRequest,
-         AuthServiceErrorConstants.LoginFailedErrorMessage);
+      if (!isLoginSuccessful)
+      {
+        throw new ReactifyBlogException(
+                  AuthServiceErrorConstants.LoginFailedErrorCode,
+                  nameof(IdentityService),
+                  (int)System.Net.HttpStatusCode.BadRequest,
+                  AuthServiceErrorConstants.LoginFailedErrorMessage);
+      }
     }
 
     public async Task<bool> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken)
@@ -170,7 +174,7 @@ namespace ReactifyBlog.Business.Services
       return true;
     }
 
-    public async Task<bool> ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken cancellationToken)
+    public async Task ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken cancellationToken)
     {
       var user = await _userManager.FindByEmailAsync(request.Email.Trim());
 
@@ -202,12 +206,19 @@ namespace ReactifyBlog.Business.Services
               AuthServiceErrorConstants.ConfirmEmailExpiredErrorMessage);
       }
 
+      if (!request.ConfirmationCode.Equals(user.ConfirmEmailCode))
+      {
+        throw new ReactifyBlogException(
+                  AuthServiceErrorConstants.ConfirmEmailInvalidCodeErrorCode,
+                  nameof(IdentityService),
+                  (int)System.Net.HttpStatusCode.BadRequest,
+                  AuthServiceErrorConstants.ConfirmEmailInvalidCodeErrorMessage);
+      }
+
       user.EmailConfirmed = true;
       user.ConfirmEmailCode = null;
       user.ConfirmEmailExpiration = null;
       await _userManager.UpdateAsync(user);
-
-      return true;
     }
 
     public async Task<bool> LogoutUserAsync()

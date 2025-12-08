@@ -3,11 +3,21 @@ namespace ReactifyBlog.Business.Constants.ErrorConstants.Exceptions
   public static class AuthServiceErrorConstants
   {
     // Register
-    public const string UserExistsErrorCode = "AUTH_REG_001";
-    public const string UserExistsErrorMessage = "User with this email already exists.";
+    public const string RegRequiredEmailErrorCode = "AUTH_REG_001";
+    public const string RegRequiredEmailErrorMessage = "Email is required.";
 
-    public const string RegisterFailedErrorCode = "AUTH_REG_002";
-    public const string RegisterFailedErrorMessage = "User registration failed.";
+    public const string RegInvalidEmailFormatErrorCode = "AUTH_REG_002";
+    public const string RegInvalidEmailFormatErrorMessage = "Invalid email format.";
+
+    public const string RegRequiredPasswordErrorCode = "AUTH_REG_003";
+    public const string RegRequiredPasswordErrorMessage = "Password is required.";
+
+    public const string RegInvalidPasswordLengthErrorCode = "AUTH_REG_004";
+    public const string RegInvalidPasswordLengthErrorMessage = "Password must be at least 6 characters long";
+
+    public const string RegPasswordMismatchErrorCode = "AUTH_REG_005";
+    public const string RegPasswordMismatchErrorMessage = "Passwords do not match.";
+
 
     // Login
     public const string InvalidCredentialsErrorCode = "AUTH_LOGIN_001";
@@ -52,6 +62,10 @@ namespace ReactifyBlog.Business.Constants.ErrorConstants.Exceptions
 
     public const string ConfirmEmailExpiredErrorCode = "AUTH_CONFEMAIL_003";
     public const string ConfirmEmailExpiredErrorMessage = "The email confirmation time limit has expired.";
+
+    public const string ConfirmEmailInvalidCodeErrorCode = "AUTH_CONFEMAIL_004";
+    public const string ConfirmEmailInvalidCodeErrorMessage = "The email confirmation code is incorrect.";
+
 
     // Logout
     public const string LogoutFailedErrorCode = "AUTH_LOGOUT_001";

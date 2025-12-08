@@ -91,6 +91,7 @@ namespace ReactifyBlog.Api.Middleware
           errors = ex.Errors.Select(e => new
           {
             e.PropertyName,
+            e.ErrorCode,
             e.ErrorMessage
           })
         });

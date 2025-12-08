@@ -1,5 +1,7 @@
-using ReactifyBlog.Business.DTOs.Auth;
 using FluentValidation;
+using ReactifyBlog.Business.Constants.ErrorConstants.Exceptions;
+using ReactifyBlog.Business.DTOs.Auth;
+using System.Net;
 
 namespace ReactifyBlog.Business.Validators.Auth
 {
@@ -8,15 +10,35 @@ namespace ReactifyBlog.Business.Validators.Auth
 		public RegisterRequestValidator()
 		{
 			RuleFor(x => x.Email)
-					.NotEmpty().WithMessage("Email is required.")
-					.EmailAddress().WithMessage("Invalid email format.").WithState(_ => 403);
+				.NotEmpty()
+				.WithErrorCode(AuthServiceErrorConstants.RegRequiredEmailErrorCode)
+				.WithMessage(AuthServiceErrorConstants.RegRequiredEmailErrorMessage)
+				.WithState(_ => HttpStatusCode.BadRequest);
 
-			RuleFor(x => x.Password)
-					.NotEmpty().WithMessage("Password is required.")
-					.MinimumLength(6).WithMessage("Password must be at least 6 characters long.").WithState(_ => 403);
+      RuleFor(request => request.Email)
+				.EmailAddress()
+				.WithErrorCode(AuthServiceErrorConstants.RegInvalidEmailFormatErrorCode)
+				.WithMessage(AuthServiceErrorConstants.RegInvalidEmailFormatErrorMessage)
+				.WithState(_ => HttpStatusCode.BadRequest);
 
-			RuleFor(x => x.ConfirmPassword)
-					.Equal(x => x.Password).WithMessage("Passwords do not match.").WithState(_ => 403);
+      RuleFor(x => x.Password)
+				 .NotEmpty()
+				 .WithErrorCode(AuthServiceErrorConstants.RegRequiredPasswordErrorCode)
+				 .WithMessage(AuthServiceErrorConstants.RegRequiredPasswordErrorMessage)					
+				 .WithState(_ => HttpStatusCode.BadRequest);
+
+			RuleFor(request => request.Password)
+				.MinimumLength(6)
+				.WithErrorCode(AuthServiceErrorConstants.RegInvalidPasswordLengthErrorCode)
+				.WithMessage(AuthServiceErrorConstants.RegInvalidPasswordLengthErrorMessage)
+        .WithState(_ => HttpStatusCode.BadRequest);
+
+
+      RuleFor(x => x.ConfirmPassword)
+				.Equal(x => x.Password)
+				.WithErrorCode(AuthServiceErrorConstants.RegPasswordMismatchErrorCode)
+				.WithMessage(AuthServiceErrorConstants.RegPasswordMismatchErrorMessage)
+				.WithState(_ => HttpStatusCode.BadRequest);
 		}
 	}
 }
