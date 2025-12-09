@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using ReactifyBlog.Api.Constants;
+using ReactifyBlog.Api.Filters;
 using ReactifyBlog.Business.Contracts.Services;
-using ReactifyBlog.Business.DTOs;
 using ReactifyBlog.Business.DTOs.Auth;
-using ReactifyBlog.Business.Filters;
 
 namespace ReactifyBlog.Api.Controllers
 {
@@ -22,14 +21,9 @@ namespace ReactifyBlog.Api.Controllers
     [HttpPost(EndpointRouteConstants.AuthRegister)]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-      var result = await _identityService.RegisterUserAsync(request);
+      await _identityService.RegisterUserAsync(request);
 
-      if (result)
-      {
-        return Ok();
-      }
-
-      return BadRequest();
+      return Ok();
     }
 
     [HttpPost(EndpointRouteConstants.AuthLogin)]

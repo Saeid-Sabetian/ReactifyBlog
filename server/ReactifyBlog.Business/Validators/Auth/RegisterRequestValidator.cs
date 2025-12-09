@@ -1,44 +1,57 @@
 using FluentValidation;
+using ReactifyBlog.Business.Constants;
 using ReactifyBlog.Business.Constants.ErrorConstants.Exceptions;
 using ReactifyBlog.Business.DTOs.Auth;
-using System.Net;
 
-namespace ReactifyBlog.Business.Validators.Auth
+namespace ReactifyBlog.Business.Validators.Auth;
+
+public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
 {
-	public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
-	{
-		public RegisterRequestValidator()
-		{
-			RuleFor(x => x.Email)
-				.NotEmpty()
-				.WithErrorCode(AuthServiceErrorConstants.RegRequiredEmailErrorCode)
-				.WithMessage(AuthServiceErrorConstants.RegRequiredEmailErrorMessage)
-				.WithState(_ => HttpStatusCode.BadRequest);
+  public RegisterRequestValidator()
+  {
+    RuleFor(x => x.Email)
+         .NotEmpty()
+         .WithErrorCode(AuthServiceErrorConstants.RegRequiredEmailErrorCode)
+         .WithMessage(AuthServiceErrorConstants.RegRequiredEmailErrorMessage);
 
-      RuleFor(request => request.Email)
-				.EmailAddress()
-				.WithErrorCode(AuthServiceErrorConstants.RegInvalidEmailFormatErrorCode)
-				.WithMessage(AuthServiceErrorConstants.RegInvalidEmailFormatErrorMessage)
-				.WithState(_ => HttpStatusCode.BadRequest);
+    RuleFor(request => request.Email)
+         .EmailAddress()
+         .WithErrorCode(AuthServiceErrorConstants.RegInvalidEmailFormatErrorCode)
+         .WithMessage(AuthServiceErrorConstants.RegInvalidEmailFormatErrorMessage);
 
-      RuleFor(x => x.Password)
-				 .NotEmpty()
-				 .WithErrorCode(AuthServiceErrorConstants.RegRequiredPasswordErrorCode)
-				 .WithMessage(AuthServiceErrorConstants.RegRequiredPasswordErrorMessage)					
-				 .WithState(_ => HttpStatusCode.BadRequest);
+    RuleFor(request => request.Password)
+         .NotEmpty()
+         .WithErrorCode(AuthServiceErrorConstants.RegRequiredPasswordErrorCode)
+         .WithMessage(AuthServiceErrorConstants.RegRequiredPasswordErrorMessage);
 
-			RuleFor(request => request.Password)
-				.MinimumLength(6)
-				.WithErrorCode(AuthServiceErrorConstants.RegInvalidPasswordLengthErrorCode)
-				.WithMessage(AuthServiceErrorConstants.RegInvalidPasswordLengthErrorMessage)
-        .WithState(_ => HttpStatusCode.BadRequest);
+    RuleFor(request => request.Password)
+         .MinimumLength(NumericConstants.Six)
+         .WithErrorCode(AuthServiceErrorConstants.RegInvalidPasswordLengthErrorCode)
+         .WithMessage(AuthServiceErrorConstants.RegInvalidPasswordLengthErrorMessage);
 
+    RuleFor(request => request.ConfirmPassword)
+         .Equal(request => request.Password)
+         .WithErrorCode(AuthServiceErrorConstants.RegPasswordMismatchErrorCode)
+         .WithMessage(AuthServiceErrorConstants.RegPasswordMismatchErrorMessage);
 
-      RuleFor(x => x.ConfirmPassword)
-				.Equal(x => x.Password)
-				.WithErrorCode(AuthServiceErrorConstants.RegPasswordMismatchErrorCode)
-				.WithMessage(AuthServiceErrorConstants.RegPasswordMismatchErrorMessage)
-				.WithState(_ => HttpStatusCode.BadRequest);
-		}
-	}
+    RuleFor(request => request.Password)
+        .Matches(RegexConstants.PasswordLowercase)
+        .WithErrorCode(AuthServiceErrorConstants.RegPasswordRequiresLowerErrorCode)
+        .WithMessage(AuthServiceErrorConstants.RegPasswordRequiresLowerErrorMessage);
+
+    RuleFor(request => request.Password)
+        .Matches(RegexConstants.PasswordUppercase)
+        .WithErrorCode(AuthServiceErrorConstants.RegPasswordRequiresUpperErrorCode)
+        .WithMessage(AuthServiceErrorConstants.RegPasswordRequiresUpperErrorMessage);
+
+    RuleFor(request => request.Password)
+        .Matches(RegexConstants.PasswordDigit)
+        .WithErrorCode(AuthServiceErrorConstants.RegPasswordRequiresDigitErrorCode)
+        .WithMessage(AuthServiceErrorConstants.RegPasswordRequiresDigitErrorMessage);
+
+    RuleFor(request => request.Password)
+        .Matches(RegexConstants.PasswordSpecialCharacter)
+        .WithErrorCode(AuthServiceErrorConstants.RegPasswordRequiresSpecialCharErrorCode)
+        .WithMessage(AuthServiceErrorConstants.RegPasswordRequiresSpecialCharErrorMessage);
+  }
 }
