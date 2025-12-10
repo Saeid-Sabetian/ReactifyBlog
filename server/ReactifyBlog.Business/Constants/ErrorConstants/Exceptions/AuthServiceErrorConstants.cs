@@ -66,6 +66,36 @@ namespace ReactifyBlog.Business.Constants.ErrorConstants.Exceptions
     // =========================
     // Change Password
     // ========================= 
+    public const string ChangePasswordRequiredOldPasswordErrorCode = "AUTH_CHPWD_01";
+    public const string ChangePasswordRequiredOldPasswordErrorMessage = "The old password is required.";
+
+    public const string ChangePasswordRequiredNewPasswordErrorCode = "AUTH_CHPWD_02";
+    public const string ChangePasswordRequiredNewPasswordErrorMessage = "The new password is required.";
+
+    public const string ChangePasswordNewPasswordLengthErrorCode = "AUTH_CHPWD_03";
+    public const string ChangePasswordNewPasswordLengthErrorMessage = "The new password must be at least 6 characters long";
+
+    public const string ChangePasswordNewPasswordRequiresLowerErrorCode = "AUTH_CHPWD_04";
+    public const string ChangePasswordNewPasswordRequiresLowerErrorMessage = "The new password must contain at least one lowercase letter.";
+
+    public const string ChangePasswordNewPasswordRequiresUpperErrorCode = "AUTH_CHPWD_05";
+    public const string ChangePasswordNewPasswordRequiresUpperErrorMessage = "The new password must contain at least one uppercase letter.";
+
+    public const string ChangePasswordNewPasswordRequiresDigitErrorCode = "AUTH_CHPWD_05";
+    public const string ChangePasswordNewPasswordRequiresDigitErrorMessage = "The new password must contain at least one digit.";
+
+    public const string ChangePasswordNewPasswordRequiresSpecialCharErrorCode = "AUTH_CHPWD_06";
+    public const string ChangePasswordNewPasswordRequiresSpecialCharErrorMessage = "The new password must contain at least one special character (e.g., @, !, #).";
+
+    public const string ChangePasswordConfirmNewPasswordIsRequiredErrorCode = "AUTH_CHPWD_07";
+    public const string ChangePasswordConfirmNewPasswordIsRequiredErrorMessage = "ConfirmNewPassword is required.";
+
+    public const string ChangePasswordConfirmNewPasswordMismatchErrorCode = "AUTH_CHPWD_08";
+    public const string ChangePasswordConfirmNewPasswordMismatchErrorMessage = "ConfirmNewPassword do not match.";
+
+
+
+
     public const string ChangePasswordFailedErrorCode = "AUTH_CHPWD_01";
     public const string ChangePasswordFailedErrorMessage = "Failed to change password.";
 

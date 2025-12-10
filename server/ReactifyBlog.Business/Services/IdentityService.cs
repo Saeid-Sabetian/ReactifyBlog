@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using ReactifyBlog.Business.Common;
@@ -74,7 +74,6 @@ public class IdentityService : IIdentityService
             (int)System.Net.HttpStatusCode.BadRequest,
             AuthServiceErrorConstants.RegisterDuplicateEmailErrorMessage
         );
-
       default:
         throw new ReactifyBlogException(
             AuthServiceErrorConstants.RegisterFailedErrorCode,
@@ -91,7 +90,7 @@ public class IdentityService : IIdentityService
     var user = await _userManager.FindByEmailAsync(request.Email);
 
     if (user is null)
-    {
+    {      
       throw new ReactifyBlogException(
         AuthServiceErrorConstants.LoginInvalidCredentialsErrorCode,
         (int)System.Net.HttpStatusCode.BadRequest,
@@ -145,49 +144,9 @@ public class IdentityService : IIdentityService
     }
   }
 
-  public async Task<bool> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken)
+  public async Task LogoutUserAsync()
   {
-    var user = await _userManager.FindByIdAsync(request.UserId.ToString());
-    if (user == null)
-    {
-      throw new ReactifyBlogException(AuthServiceErrorConstants.ChangePasswordFailedErrorCode, (int)System.Net.HttpStatusCode.NotFound, AuthServiceErrorConstants.ChangePasswordFailedErrorMessage);
-    }
-
-    var result = await _userManager.ChangePasswordAsync(user, request.OldPassword, request.NewPassword);
-    return result.Succeeded;
-  }
-
-  public async Task<bool> UpdateUserAsync(UpdateUserRequest request, CancellationToken cancellationToken)
-  {
-    var user = await _userManager.FindByIdAsync(request.UserId.ToString());
-    if (user == null)
-    {
-      return false;
-    }
-
-    user.NickName = request.NickName;
-    var result = await _userManager.UpdateAsync(user);
-    return result.Succeeded;
-  }
-
-  public async Task<bool> RecoverPasswordAsync(RecoverPasswordRequest request, CancellationToken cancellationToken)
-  {
-    var user = await _userManager.FindByEmailAsync(request.Email);
-    if (user == null)
-    {
-      return false;
-    }
-
-    string sixDigitCode = NumericHelper.GenerateRandomInt(NumericConstants.OneHundredThousand, NumericConstants.OneMillion).ToString();
-    user.ConfirmEmailCode = sixDigitCode;
-    user.ConfirmEmailExpiration = DateTimeOffset.UtcNow.AddMinutes(15);
-    await _userManager.UpdateAsync(user);
-
-    if (user.Email != null)
-    {
-      await _emailService.SendEmailAsync(user.Email, EmailConstants.RecoverPasswordSubject, $"Your password recovery code is: {sixDigitCode}");
-    }
-    return true;
+    await _signInManager.SignOutAsync();
   }
 
   public async Task ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken cancellationToken)
@@ -233,11 +192,6 @@ public class IdentityService : IIdentityService
     await _userManager.UpdateAsync(user);
   }
 
-  public async Task LogoutUserAsync()
-  {
-    await _signInManager.SignOutAsync();
-  }
-
   public async Task GenerateAndStoreRefreshTokenAsync(UserDBO user, CancellationToken cancellationToken)
   {
     var randomNumber = new byte[NumericConstants.SixtyFour];
@@ -269,4 +223,52 @@ public class IdentityService : IIdentityService
 
     _httpContextAccessor.HttpContext?.Response.Cookies.Append(CookieConstants.RefreshTokenCookieName, refreshToken, cookieOptions);
   }
+
+  ////public async Task<bool> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken)
+  ////{
+  ////  ////var user = await _userManager.FindByIdAsync(request.UserId.ToString());
+  ////  ////if (user == null)
+  ////  ////{
+  ////  ////  throw new ReactifyBlogException(AuthServiceErrorConstants.ChangePasswordFailedErrorCode, (int)System.Net.HttpStatusCode.NotFound, AuthServiceErrorConstants.ChangePasswordFailedErrorMessage);
+  ////  ////}
+
+  ////  ////var result = await _userManager.ChangePasswordAsync(user, request.OldPassword, request.NewPassword);
+  ////  ////return result.Succeeded;
+  ////  ///
+  ////  await Task.Delay(0);
+  ////  return true;
+  ////}
+
+  ////public async Task<bool> UpdateUserAsync(UpdateUserRequest request, CancellationToken cancellationToken)
+  ////{
+  ////  var user = await _userManager.FindByIdAsync(request.UserId.ToString());
+  ////  if (user == null)
+  ////  {
+  ////    return false; 
+  ////  }
+
+  ////  user.NickName = request.NickName;
+  ////  var result = await _userManager.UpdateAsync(user);
+  ////  return result.Succeeded;
+  ////}
+
+  ////public async Task<bool> RecoverPasswordAsync(RecoverPasswordRequest request, CancellationToken cancellationToken)
+  ////{
+  ////  var user = await _userManager.FindByEmailAsync(request.Email);
+  ////  if (user == null)
+  ////  {
+  ////    return false;
+  ////  }
+
+  ////  string sixDigitCode = NumericHelper.GenerateRandomInt(NumericConstants.OneHundredThousand, NumericConstants.OneMillion).ToString();
+  ////  user.ConfirmEmailCode = sixDigitCode;
+  ////  user.ConfirmEmailExpiration = DateTime.UtcNow.AddMinutes(15);
+  ////  await _userManager.UpdateAsync(user);
+
+  ////  if (user.Email != null)
+  ////  {
+  ////    await _emailService.SendEmailAsync(user.Email, EmailConstants.RecoverPasswordSubject, $"Your password recovery code is: {sixDigitCode}");
+  ////  }
+  ////  return true;
+  ////}
 }
