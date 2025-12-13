@@ -1,41 +1,45 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using ReactifyBlog.Business.Common;
 using ReactifyBlog.Business.Constants;
 using ReactifyBlog.Business.Constants.ErrorConstants;
 using ReactifyBlog.Business.Constants.ErrorConstants.Exceptions;
 using ReactifyBlog.Business.Contracts.Services;
+using ReactifyBlog.Business.Contracts.Wrappers;
 using ReactifyBlog.Business.DTOs.Auth;
 using ReactifyBlog.Business.Exceptions;
 using ReactifyBlog.Data.Data;
 using ReactifyBlog.Data.Models;
+using System.Data;
+using System.Security.Claims;
 using System.Security.Cryptography;
 
 namespace ReactifyBlog.Business.Services;
 
-public class IdentityService : IIdentityService
+public class AuthenticationService : IAuthenticationService
 {
   private readonly UserManager<UserDBO> _userManager;
   private readonly SignInManager<UserDBO> _signInManager;
+  private readonly IHttpContextAccessorWrapper _httpContextAccessorWrapper;
   private readonly IEmailService _emailService;
-  private readonly IHttpContextAccessor _httpContextAccessor;
   private readonly ReactifyBlogDbContext _dbContext;
   private readonly IMapper _mapper;
 
-  public IdentityService(
+  public AuthenticationService(
   UserManager<UserDBO> userManager,
   SignInManager<UserDBO> signInManager,
+  IHttpContextAccessorWrapper httpContextAccessorWrapper,
   IEmailService emailService,
   IMapper mapper,
-  IHttpContextAccessor httpContextAccessor,
   ReactifyBlogDbContext dbContext
   )
   {
     _userManager = userManager;
     _signInManager = signInManager;
+    _httpContextAccessorWrapper = httpContextAccessorWrapper;
     _emailService = emailService;
-    _httpContextAccessor = httpContextAccessor;
     _dbContext = dbContext;
     _mapper = mapper;
   }
@@ -90,7 +94,7 @@ public class IdentityService : IIdentityService
     var user = await _userManager.FindByEmailAsync(request.Email);
 
     if (user is null)
-    {      
+    {
       throw new ReactifyBlogException(
         AuthServiceErrorConstants.LoginInvalidCredentialsErrorCode,
         (int)System.Net.HttpStatusCode.BadRequest,
@@ -125,7 +129,16 @@ public class IdentityService : IIdentityService
 
     if (result.Succeeded)
     {
-      await _signInManager.SignInAsync(user, false);
+      var userRoles = await _userManager.GetRolesAsync(user);
+
+      var claims = userRoles.Select(role => new Claim(ClaimTypes.Role, role)).ToList();
+
+      claims.Add(new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()));
+
+      await _signInManager.SignInWithClaimsAsync(
+            user,
+            isPersistent: false,
+            additionalClaims: claims);
 
       if (request.RememberMe)
       {
@@ -221,7 +234,49 @@ public class IdentityService : IIdentityService
       Expires = refreshTokenDBO.ExpiresAt,
     };
 
-    _httpContextAccessor.HttpContext?.Response.Cookies.Append(CookieConstants.RefreshTokenCookieName, refreshToken, cookieOptions);
+    _httpContextAccessorWrapper.AddCookie(CookieConstants.RefreshTokenCookieName, refreshToken, cookieOptions);
+  }
+
+  public async Task<bool> RefreshToken(CancellationToken cancellationToken)
+  {
+    var refreshTokenValue = _httpContextAccessorWrapper.GetCookieValue(CookieConstants.RefreshTokenCookieName);
+    if (string.IsNullOrEmpty(refreshTokenValue))
+    {
+      return false;
+    }
+
+    _ = long.TryParse(_httpContextAccessorWrapper.GetClaim(ClaimTypes.NameIdentifier), out var userId);
+
+    var userDbo = await _dbContext.Users.FindAsync(userId);
+
+    var userRestoredToken = await _dbContext.RefreshTokens
+                                            .Where(rt => rt.UserId == userDbo.Id)
+                                            .OrderByDescending(rt => rt.Id)
+                                            .FirstOrDefaultAsync();
+    if (userRestoredToken is null)
+    {
+      return false;
+    }
+
+    var utcNow = DateTime.UtcNow;
+    if (userRestoredToken.ExpiresAt < utcNow)
+    {
+      return false;
+    }
+
+    var tokenVerfication = _userManager.PasswordHasher.VerifyHashedPassword(userDbo, userRestoredToken.TokenHash, refreshTokenValue);
+
+    if (tokenVerfication != PasswordVerificationResult.Success)
+    {
+      return false;
+    }
+
+    _dbContext.RefreshTokens.Remove(userRestoredToken);
+    await _dbContext.SaveChangesAsync();
+
+    await GenerateAndStoreRefreshTokenAsync(userDbo, cancellationToken);
+
+    return true;
   }
 
   ////public async Task<bool> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken)

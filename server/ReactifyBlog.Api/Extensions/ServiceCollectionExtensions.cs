@@ -6,9 +6,11 @@ using Microsoft.OpenApi.Models;
 using ReactifyBlog.Api.Filters;
 using ReactifyBlog.Business.Constants;
 using ReactifyBlog.Business.Contracts.Services;
+using ReactifyBlog.Business.Contracts.Wrappers;
 using ReactifyBlog.Business.MappingProfiles;
 using ReactifyBlog.Business.Services;
 using ReactifyBlog.Business.Validators.Auth;
+using ReactifyBlog.Business.Wrappers;
 using ReactifyBlog.Data.Data;
 using ReactifyBlog.Data.Models;
 
@@ -83,14 +85,15 @@ public static class ServiceCollectionExtensions
 
   public static IServiceCollection AddAutoMapper(this IServiceCollection services)
   {
-    services.AddAutoMapper(typeof(UserProfile).Assembly);
+    services.AddAutoMapper(typeof(MapperProfile).Assembly);
     return services;
   }
 
   public static IServiceCollection AddApplicationServices(this IServiceCollection services)
   {
-    services.AddScoped<IIdentityService, IdentityService>();
+    services.AddScoped<IAuthenticationService, AuthenticationService>();
     services.AddScoped<IEmailService, EmailService>();
+    services.AddScoped<IHttpContextAccessorWrapper, HttpContextAccessorWrapper>();
 
     services.AddScoped<ValidationFilter>();
 

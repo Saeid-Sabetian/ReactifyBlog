@@ -11,9 +11,9 @@ namespace ReactifyBlog.Api.Controllers;
 [Route(EndpointRouteConstants.AuthBase)]
 public class AuthController : ControllerBase
 {
-  private readonly IIdentityService _identityService;
+  private readonly IAuthenticationService _identityService;
 
-  public AuthController(IIdentityService identityService)
+  public AuthController(IAuthenticationService identityService)
   {
     _identityService = identityService;
   }
@@ -40,5 +40,13 @@ public class AuthController : ControllerBase
     await _identityService.ConfirmEmailAsync(request, cancellationToken);
 
     return Ok();
+  }
+
+  [HttpPost(EndpointRouteConstants.AuthRefreshToken)]
+  public async Task<IActionResult> RefreshToken(CancellationToken cancellationToken)
+  {
+    var result = await _identityService.RefreshToken(cancellationToken);
+
+    return result ? Ok() : Unauthorized();
   }
 }

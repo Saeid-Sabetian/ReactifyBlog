@@ -7,5 +7,6 @@ public static class EndpointRouteConstants
   public const string AuthRegister = "register";
   public const string AuthLogin = "login";
   public const string AuthConfirmAccount = "confirm-account";
+  public const string AuthRefreshToken = "refresh-token";
   #endregion
 }
