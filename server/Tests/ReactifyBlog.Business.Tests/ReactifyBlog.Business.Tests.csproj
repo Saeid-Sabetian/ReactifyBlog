@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\ReactifyBlog.Business\ReactifyBlog.Business.csproj" />
+    <ProjectReference Include="..\..\ReactifyBlog.UnitTestToolkit\ReactifyBlog.UnitTestToolkit.csproj" />
   </ItemGroup>
 
 </Project>

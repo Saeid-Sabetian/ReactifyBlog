@@ -76,14 +76,12 @@ public class AuthenticationService : IAuthenticationService
         throw new ReactifyBlogException(
             AuthServiceErrorConstants.RegisterDuplicateEmailErrorCode,
             (int)System.Net.HttpStatusCode.BadRequest,
-            AuthServiceErrorConstants.RegisterDuplicateEmailErrorMessage
-        );
+            AuthServiceErrorConstants.RegisterDuplicateEmailErrorMessage);
       default:
         throw new ReactifyBlogException(
             AuthServiceErrorConstants.RegisterFailedErrorCode,
             (int)System.Net.HttpStatusCode.BadRequest,
-            AuthServiceErrorConstants.RegisterFailedErrorMessage
-        );
+            AuthServiceErrorConstants.RegisterFailedErrorMessage);
     }
   }
 
